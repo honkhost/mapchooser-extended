@@ -40,12 +40,13 @@
 #include <mapchooser_extended>
 #include <multicolors>
 #include <basecomm>
+#include <vip_core>
 
-#define MCE_VERSION "1.14.0"
+#define MCE_VERSION "1.15.0"
 
 public Plugin myinfo =
 {
-	name = "Map Nominations Extended with Admin and VIP Map",
+	name = "Map Nominations Extended with Admin and VIP Map TLUS Edition",
 	author = "Powerlord, Oylsister and AlliedModders LLC",
 	description = "Provides Map Nominations",
 	version = MCE_VERSION,
@@ -1167,14 +1168,7 @@ public int Native_RemoveMapsFromNominationPool(Handle plugin, int numArgs)
 
 stock bool IsClientVIP(int client)
 {
-	char sClientFlag[16];
-	GetConVarString(g_Cvar_VIPFlag, sClientFlag, sizeof(sClientFlag));
-
-	if (GetUserFlagBits(client) & ReadFlagString(sClientFlag))
-	{
-		return true;
-	}
-	return false;
+	return VIP_IsClientVIP(client);
 }
 
 stock bool IsClientAdmin(int client)
