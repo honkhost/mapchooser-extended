@@ -276,7 +276,8 @@ public Action Command_Addmap(int client, int args)
 		return Plugin_Handled;
 	}
 
-	if(!CheckCommandAccess(client, "sm_nominate_ignore", ADMFLAG_CHEATS, true))
+	// Now Normal admin can ignore the restriction
+	if(!CheckCommandAccess(client, "sm_nominate_ignore", ADMFLAG_GENERIC, true))
 	{
 		int status;
 		if(GetTrieValue(g_mapTrie, mapname, status))
