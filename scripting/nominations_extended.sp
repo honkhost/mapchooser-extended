@@ -1169,7 +1169,12 @@ public int Native_RemoveMapsFromNominationPool(Handle plugin, int numArgs)
 
 stock bool IsClientVIP(int client)
 {
-	return VIP_IsClientVIP(client);
+	if(VIP_IsClientVIP(client))
+	{
+		return true;
+	}
+	
+	return false;
 }
 
 stock bool IsClientAdmin(int client)
