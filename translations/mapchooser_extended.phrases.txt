@@ -165,4 +165,14 @@
 		"#format"		"{1:s}"
 		"en"			"Your nomination {1} has been removed because it exceeds the maximum player restriction."
 	}
+
+	"VIP only"
+	{
+		"en"			"You can't nominate this map, because it is VIP map and you're not VIP."
+	}
+
+	"Admin only"
+	{
+		"en"			"You can't nominate this map, because it is Admin map and you're not Admin."
+	}
 }

@@ -491,6 +491,18 @@ public Action Command_Nominate(int client, int args)
 		AttemptNominate(client, mapname);
 		return Plugin_Handled;
 	}
+	
+	if(GetMapAdminOnly(mapname) && !IsClientAdmin(client))
+	{
+		CPrintToChat(client, "\x04[NE]\x01 %t", "Admin only");
+		return Plugin_Handled;
+	}
+	
+	if(GetMapVIPOnly(mapname) && !IsClientVIP(client))
+	{
+		CPrintToChat(client, "\x04[NE]\x01 %t", "VIP only");
+		return Plugin_Handled;
+	}
 
 	if((status & MAPSTATUS_DISABLED) == MAPSTATUS_DISABLED)
 	{
