@@ -60,7 +60,7 @@
 #define MCE_VERSION "1.14.0"
 #define NV "nativevotes"
 
-//define GRP_COOLDOWN
+#define GRP_COOLDOWN
 
 enum RoundCounting
 {
@@ -557,7 +557,6 @@ public void OnMapEnd()
 	InternalStoreMapCooldowns();
 	
 	#if defined GRP_COOLDOWN
-	int Cooldown = InternalGetMapCooldown(map);
 	SetMapCooldownGroup(map);
 	#endif
 	
@@ -2826,9 +2825,10 @@ stock void SetMapsGroupCooldown(int group, int cooldown)
         {
             do
             {
-                g_Config.GetSectionName(mapname, sizeof(mapname));
+                g_Config.GetSectionName(map, sizeof(map));
                 g_OldMapList.SetValue(map, cooldown, true);
-            }while (g_Config.GotoNextKey());
+            }
+			while (g_Config.GotoNextKey());
         }
 
         g_Config.Rewind();
