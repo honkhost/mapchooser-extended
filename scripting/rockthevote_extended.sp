@@ -39,6 +39,7 @@
 #include <sdktools_functions>
 #include <mapchooser>
 #include <nextmap>
+#include <multicolors>
 
 #define MCE_VERSION "1.13.0"
 
@@ -222,25 +223,25 @@ void AttemptRTV(int client)
 {
 	if (!g_RTVAllowed  || (g_Cvar_RTVPostVoteAction.IntValue == 1 && HasEndOfMapVoteFinished()))
 	{
-		ReplyToCommand(client, "[RTVE] %t", "RTV Not Allowed");
+		CReplyToCommand(client, "\x04[RTV]\x01 %t", "RTV Not Allowed");
 		return;
 	}
 
 	if (!CanMapChooserStartVote())
 	{
-		ReplyToCommand(client, "[RTVE] %t", "RTV Started");
+		CReplyToCommand(client, "\x04[RTV]\x01 %t", "RTV Started");
 		return;
 	}
 
 	if (GetClientCount(true) < g_Cvar_MinPlayers.IntValue)
 	{
-		ReplyToCommand(client, "[RTVE] %t", "Minimal Players Not Met");
+		CReplyToCommand(client, "\x04[RTV]\x01 %t", "Minimal Players Not Met");
 		return;
 	}
 
 	if (g_Voted[client])
 	{
-		ReplyToCommand(client, "[RTVE] %t", "Already Voted", g_Votes, g_VotesNeeded);
+		CReplyToCommand(client, "\x04[RTV]\x01 %t", "Already Voted", g_Votes, g_VotesNeeded);
 		return;
 	}
 
@@ -250,7 +251,7 @@ void AttemptRTV(int client)
 	g_Votes++;
 	g_Voted[client] = true;
 
-	PrintToChatAll("[RTVE] %t", "RTV Requested", name, g_Votes, g_VotesNeeded);
+	CPrintToChatAll("\x04[RTV]\x01 %t", "RTV Requested", name, g_Votes, g_VotesNeeded);
 
 	if (g_Votes >= g_VotesNeeded)
 	{
@@ -278,7 +279,7 @@ void StartRTV()
 		{
 			GetMapDisplayName(map, map, sizeof(map));
 
-			PrintToChatAll("[RTVE] %t", "Changing Maps", map);
+			CPrintToChatAll("\x04[RTV]\x01 %t", "Changing Maps", map);
 			CreateTimer(5.0, Timer_ChangeMap, _, TIMER_FLAG_NO_MAPCHANGE);
 			g_InChange = true;
 
@@ -331,7 +332,7 @@ public Action Command_ForceRTV(int client, int args)
 	if(!g_CanRTV)
 		return Plugin_Handled;
 
-	ShowActivity2(client, "[RTVE] ", "%t", "Initiated Vote Map");
+	CShowActivity2(client, "\x04[RTV]\x01 ", "%t", "Initiated Vote Map");
 
 	StartRTV();
 
@@ -343,7 +344,7 @@ public Action Command_DisableRTV(int client, int args)
 	if(!g_RTVAllowed)
 		return Plugin_Handled;
 
-	ShowActivity2(client, "[RTVE] ", "disabled RockTheVote.");
+	CShowActivity2(client, "\x04[RTV]\x01 ", "disabled RockTheVote.");
 
 	g_RTVAllowed = false;
 
@@ -355,7 +356,7 @@ public Action Command_EnableRTV(int client, int args)
 	if(g_RTVAllowed)
 		return Plugin_Handled;
 
-	ShowActivity2(client, "[RTVE] ", "enabled RockTheVote");
+	CShowActivity2(client, "\x04[RTV]\x01 ", "enabled RockTheVote");
 
 	g_RTVAllowed = true;
 

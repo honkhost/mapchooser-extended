@@ -411,6 +411,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("GetMapPlayerRestriction", Native_GetMapPlayerRestriction);
 	CreateNative("GetMapGroups", Native_GetMapGroups);
 	CreateNative("GetMapGroupRestriction", Native_GetMapGroupRestriction);
+	CreateNative("GetMapNominateOnly", Native_GetMapNominateOnly);
 
 	return APLRes_Success;
 }
@@ -586,7 +587,7 @@ public Action Command_SetNextmap(int client, int args)
 {
 	if(args < 1)
 	{
-		CReplyToCommand(client, "[MCE] Usage: sm_setnextmap <map>");
+		CReplyToCommand(client, "\x04[MCE]\x01 Usage: sm_setnextmap <map>");
 		return Plugin_Handled;
 	}
 
@@ -595,7 +596,7 @@ public Action Command_SetNextmap(int client, int args)
 
 	if(!IsMapValid(map))
 	{
-		CReplyToCommand(client, "[MCE] %t", "Map was not found", map);
+		CReplyToCommand(client, "\x04[MCE]\x01 %t", "Map was not found", map);
 		return Plugin_Handled;
 	}
 
@@ -950,7 +951,7 @@ public void Event_PlayerDeath(Handle event, const char[] name, bool dontBroadcas
 
 public Action Command_Mapvote(int client, int args)
 {
-	ShowActivity2(client, "[MCE] ", "%t", "Initiated Vote Map");
+	ShowActivity2(client, "\x04[MCE]\x01 ", "%t", "Initiated Vote Map");
 
 	SetupWarningTimer(WarningType_Vote, MapChange_MapEnd, INVALID_HANDLE, true);
 
@@ -978,7 +979,7 @@ void InitiateVote(MapChange when, Handle inputlist=INVALID_HANDLE)
 		// Can't start a vote, try again in 5 seconds.
 		//g_RetryTimer = CreateTimer(5.0, Timer_StartMapVote, _, TIMER_FLAG_NO_MAPCHANGE);
 
-		CPrintToChatAll("[MCE] %t", "Cannot Start Vote", FAILURE_TIMER_LENGTH);
+		CPrintToChatAll("\x04[MCE]\x01 %t", "Cannot Start Vote", FAILURE_TIMER_LENGTH);
 		Handle data;
 		g_RetryTimer = CreateDataTimer(1.0, Timer_StartMapVote, data, TIMER_FLAG_NO_MAPCHANGE | TIMER_REPEAT);
 
@@ -1252,7 +1253,7 @@ void InitiateVote(MapChange when, Handle inputlist=INVALID_HANDLE)
 	Call_Finish();
 
 	LogAction(-1, -1, "Voting for next map has started.");
-	CPrintToChatAll("[MCE] %t", "Nextmap Voting Started");
+	CPrintToChatAll("\x04[MCE]\x01 %t", "Nextmap Voting Started");
 }
 
 public int Handler_NativeVoteFinished(Handle vote,
@@ -1321,7 +1322,7 @@ public void Handler_VoteFinishedGeneric(Handle menu,
 		if(g_NativeVotes)
 			NativeVotes_DisplayPassEx(menu, NativeVotesPass_Extend);
 
-		CPrintToChatAll("[MCE] %t", "Current Map Extended", RoundToFloor(float(item_info[0][VOTEINFO_ITEM_VOTES])/float(num_votes)*100), num_votes);
+		CPrintToChatAll("\x04[MCE]\x01 %t", "Current Map Extended", RoundToFloor(float(item_info[0][VOTEINFO_ITEM_VOTES])/float(num_votes)*100), num_votes);
 		LogAction(-1, -1, "Voting for next map has finished. The current map has been extended.");
 
 		// We extended, so we'll have to vote again.
@@ -1335,7 +1336,7 @@ public void Handler_VoteFinishedGeneric(Handle menu,
 		if(g_NativeVotes)
 			NativeVotes_DisplayPassEx(menu, NativeVotesPass_Extend);
 
-		CPrintToChatAll("[MCE] %t", "Current Map Stays", RoundToFloor(float(item_info[0][VOTEINFO_ITEM_VOTES])/float(num_votes)*100), num_votes);
+		CPrintToChatAll("\x04[MCE]\x01 %t", "Current Map Stays", RoundToFloor(float(item_info[0][VOTEINFO_ITEM_VOTES])/float(num_votes)*100), num_votes);
 		LogAction(-1, -1, "Voting for next map has finished. 'No Change' was the winner");
 
 		g_RunoffCount = 0;
@@ -1373,7 +1374,7 @@ public void Handler_VoteFinishedGeneric(Handle menu,
 		g_HasVoteStarted = false;
 		g_MapVoteCompleted = true;
 
-		CPrintToChatAll("[MCE] %t", "Nextmap Voting Finished", map, RoundToFloor(float(item_info[0][VOTEINFO_ITEM_VOTES])/float(num_votes)*100), num_votes);
+		CPrintToChatAll("\x04[MCE]\x01 %t", "Nextmap Voting Finished", map, RoundToFloor(float(item_info[0][VOTEINFO_ITEM_VOTES])/float(num_votes)*100), num_votes);
 		LogAction(-1, -1, "Voting for next map has finished. Nextmap: %s.", map);
 	}
 }
@@ -1417,7 +1418,7 @@ public void Handler_MapVoteFinished(Handle menu,
 			if(g_NativeVotes)
 				NativeVotes_DisplayFail(menu, NativeVotesFail_NotEnoughVotes);
 
-			CPrintToChatAll("[MCE] %t", "Tie Vote", GetArraySize(mapList));
+			CPrintToChatAll("\x04[MCE]\x01 %t", "Tie Vote", GetArraySize(mapList));
 			SetupWarningTimer(WarningType_Revote, view_as<MapChange>(g_ChangeTime), mapList);
 			return;
 		}
@@ -1450,7 +1451,7 @@ public void Handler_MapVoteFinished(Handle menu,
 			if(g_NativeVotes)
 				NativeVotes_DisplayFail(menu, NativeVotesFail_NotEnoughVotes);
 
-			CPrintToChatAll("[MCE] %t", "Revote Is Needed", required_percent);
+			CPrintToChatAll("\x04[MCE]\x01 %t", "Revote Is Needed", required_percent);
 			SetupWarningTimer(WarningType_Revote, view_as<MapChange>(g_ChangeTime), mapList);
 			return;
 		}
@@ -1695,6 +1696,9 @@ void CreateNextVote()
 				continue;
 
 			if(InternalGetMapPlayerRestriction(map) != 0)
+				continue;
+				
+			if(InternalGetMapNominateOnly(map))
 				continue;
 
 			bool okay = true;
@@ -2296,6 +2300,19 @@ public int Native_GetMapGroupRestriction(Handle plugin, int numParams)
 	return -1;
 }
 
+public int Native_GetMapNominateOnly(Handle plugin, int numParams)
+{
+	int len;
+	GetNativeStringLength(1, len);
+
+	if(len <= 0)
+		return false;
+
+	char[] map = new char[len+1];
+	GetNativeString(1, map, len+1);
+
+	return InternalGetMapNominateOnly(map);
+}
 
 stock void AddMapItem(const char[] map)
 {
@@ -2396,7 +2413,7 @@ void CheckMapRestrictions(bool time = false, bool players = false)
 			{
 				remove = true;
 
-				CPrintToChat(client, "[MCE] %t", "Nomination Removed Time Error", map);
+				CPrintToChat(client, "\x04[MCE]\x01 %t", "Nomination Removed Time Error", map);
 			}
 		}
 
@@ -2408,9 +2425,9 @@ void CheckMapRestrictions(bool time = false, bool players = false)
 				remove = true;
 
 				if(PlayerRestriction < 0)
-					CPrintToChat(client, "[MCE] %t", "Nomination Removed MinPlayers Error", map);
+					CPrintToChat(client, "\x04[MCE]\x01 %t", "Nomination Removed MinPlayers Error", map);
 				else
-					CPrintToChat(client, "[MCE] %t", "Nomination Removed MaxPlayers Error", map);
+					CPrintToChat(client, "\x04[MCE]\x01 %t", "Nomination Removed MaxPlayers Error", map);
 			}
 		}
 
@@ -2478,6 +2495,21 @@ stock int InternalGetMapMaxPlayers(const char[] map)
 	}
 
 	return MaxPlayers;
+}
+
+stock bool InternalGetMapNominateOnly(const char[] map)
+{
+	int NominateOnly = 0;
+	
+	if(g_Config && g_Config.JumpToKey(map))
+	{
+		NominateOnly = g_Config.GetNum("NominateOnly", -1);
+		g_Config.Rewind();
+		
+		if(NominateOnly >= 1)
+			return true;
+	}
+	return false;
 }
 
 stock int InternalGetMapGroups(const char[] map, int[] groups, int size)
