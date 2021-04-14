@@ -62,6 +62,8 @@ Menu g_AdminMapMenu;
 int g_mapFileSerial = -1;
 int g_AdminMapFileSerial = -1;
 
+bool g_bNominateAllow = true;
+
 #define MAPSTATUS_ENABLED (1<<0)
 #define MAPSTATUS_DISABLED (1<<1)
 #define MAPSTATUS_EXCLUDE_CURRENT (1<<2)
@@ -99,6 +101,8 @@ public void OnPluginStart()
 
 	RegConsoleCmd("sm_nominate", Command_Nominate);
 	RegConsoleCmd("sm_nomlist", Command_NominateList);
+	
+	RegAdminCmd("sm_enable_nominate", Command_ToggleNomination, ADMFLAG_CHANGEMAP, "sm_enable_nominate <0-1> - Toggle Allow Nomination");
 
 	RegAdminCmd("sm_nominate_addmap", Command_Addmap, ADMFLAG_CHANGEMAP, "sm_nominate_addmap <mapname> - Forces a map to be on the next mapvote.");
 	RegAdminCmd("sm_nominate_removemap", Command_Removemap, ADMFLAG_CHANGEMAP, "sm_nominate_removemap <mapname> - Removes a map from Nominations.");
@@ -107,6 +111,8 @@ public void OnPluginStart()
 
 	// Nominations Extended cvars
 	CreateConVar("ne_version", MCE_VERSION, "Nominations Extended Version", FCVAR_SPONLY|FCVAR_NOTIFY|FCVAR_DONTRECORD);
+	
+	AutoExecConfig(true, "nominations_extended");
 
 	g_mapTrie = CreateTrie();
 }
@@ -169,6 +175,7 @@ public void OnConfigsExecuted()
 	}
 
 	g_NominationDelay = GetTime() + GetConVarInt(g_Cvar_InitialDelay);
+	g_bNominateAllow = true;
 
 	UpdateMapTrie();
 	UpdateMapMenus();
@@ -416,6 +423,41 @@ public Action Command_AddExclude(int client, int args)
 	return Plugin_Handled;
 }
 
+public Action Command_ToggleNomination(int client, int args)
+{
+	if(args < 1)
+	{
+		CReplyToCommand(client, "\x04[NE]\x01 Usage: sm_enable_nominate <0-1>");
+		return Plugin_Handled;
+	}
+	
+	int iArg;
+	
+	char Arg[16];
+	GetCmdArg(1, Arg, sizeof(Arg));
+	iArg = StringToInt(Arg);
+	
+	if(iArg < 0 || iArg > 1)
+	{
+		CReplyToCommand(client, "\x04[NE]\x01 Usage: sm_enable_nominate <0-1>");
+		return Plugin_Handled;
+	}
+	
+	else if(iArg == 0)
+	{
+		g_bNominateAllow = false;
+		CPrintToChatAll("\x04[NE]\x01 The Nomination has been disabled by Admin");
+		return Plugin_Handled;
+	}
+	else if(iArg == 1)
+	{
+		g_bNominateAllow = true;
+		CPrintToChatAll("\x04[NE]\x01 The Nomination has been enable by Admin");
+		return Plugin_Handled;
+	}
+	return Plugin_Handled;
+}
+
 public Action Command_Say(int client, int args)
 {
 	if(!client)
@@ -440,6 +482,10 @@ public Action Command_Say(int client, int args)
 		{
 			if(g_NominationDelay > GetTime())
 				CReplyToCommand(client, "\x04[NE]\x01 Nominations will be unlocked in %d seconds", g_NominationDelay - GetTime());
+				
+			else if(!g_bNominateAllow)
+				CReplyToCommand(client, "\x04[NE]\x01 The Admin has disalbed this feature temporary");
+				
 			else
 				AttemptNominate(client);
 		}
@@ -458,6 +504,12 @@ public Action Command_Nominate(int client, int args)
 	if(g_NominationDelay > GetTime())
 	{
 		CPrintToChat(client, "\x04[NE]\x01 Nominations will be unlocked in %d seconds", g_NominationDelay - GetTime());
+		return Plugin_Handled;
+	}
+	
+	if(!g_bNominateAllow)
+	{
+		CPrintToChat(client, "\x04[NE]\x01 The Admin has disalbed this feature temporary");
 		return Plugin_Handled;
 	}
 
