@@ -41,12 +41,12 @@
 #include <multicolors>
 #include <basecomm>
 
-#define MCE_VERSION "1.14.0"
+#define MCE_VERSION "1.13.0"
 
 public Plugin myinfo =
 {
-	name = "Map Nominations Extended with Admin and VIP Map",
-	author = "Powerlord, Oylsister and AlliedModders LLC",
+	name = "Map Nominations Extended",
+	author = "Powerlord and AlliedModders LLC",
 	description = "Provides Map Nominations",
 	version = MCE_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=156974"
@@ -62,9 +62,6 @@ Menu g_AdminMapMenu;
 int g_mapFileSerial = -1;
 int g_AdminMapFileSerial = -1;
 
-#define LoopAllPlayers(%1) for(int %1=1;%1<=MaxClients;++%1)\
-if(IsClientInGame(%1) && !IsFakeClient(%1))
-
 #define MAPSTATUS_ENABLED (1<<0)
 #define MAPSTATUS_DISABLED (1<<1)
 #define MAPSTATUS_EXCLUDE_CURRENT (1<<2)
@@ -77,7 +74,6 @@ Handle g_mapTrie;
 Handle g_Cvar_MarkCustomMaps = INVALID_HANDLE;
 Handle g_Cvar_NominateDelay = INVALID_HANDLE;
 Handle g_Cvar_InitialDelay = INVALID_HANDLE;
-Handle g_Cvar_VIPFlag = INVALID_HANDLE;
 
 int g_Player_NominationDelay[MAXPLAYERS+1];
 int g_NominationDelay;
@@ -97,7 +93,6 @@ public void OnPluginStart()
 	g_Cvar_ExcludeCurrent = CreateConVar("sm_nominate_excludecurrent", "1", "Specifies if the MapChooser excluded maps should also be excluded from Nominations", 0, true, 0.00, true, 1.0);
 	g_Cvar_InitialDelay = CreateConVar("sm_nominate_initialdelay", "60.0", "Time in seconds before first Nomination can be made", 0, true, 0.00);
 	g_Cvar_NominateDelay = CreateConVar("sm_nominate_delay", "3.0", "Delay between nominations", 0, true, 0.00, true, 60.00);
-	g_Cvar_VIPFlag = CreateConVar("sm_nominate_vip_flag", "a", "Specific VIP Flag");
 
 	RegConsoleCmd("say", Command_Say);
 	RegConsoleCmd("say_team", Command_Say);
@@ -114,7 +109,6 @@ public void OnPluginStart()
 	CreateConVar("ne_version", MCE_VERSION, "Nominations Extended Version", FCVAR_SPONLY|FCVAR_NOTIFY|FCVAR_DONTRECORD);
 
 	g_mapTrie = CreateTrie();
-	AutoExecConfig();
 }
 
 public APLRes AskPluginLoad2(Handle hThis, bool bLate, char[] err, int iErrLen)
@@ -261,7 +255,7 @@ public Action Command_Addmap(int client, int args)
 
 	if(args != 1)
 	{
-		CReplyToCommand(client, "\x04[NE]\x01 Usage: sm_nominate_addmap <mapname>");
+		CReplyToCommand(client, "[NE] Usage: sm_nominate_addmap <mapname>");
 		return Plugin_Handled;
 	}
 
@@ -283,16 +277,16 @@ public Action Command_Addmap(int client, int args)
 			if((status & MAPSTATUS_DISABLED) == MAPSTATUS_DISABLED)
 			{
 				if((status & MAPSTATUS_EXCLUDE_CURRENT) == MAPSTATUS_EXCLUDE_CURRENT)
-					CPrintToChat(client, "\x04[NE]\x01 %t", "Can't Nominate Current Map");
+					CPrintToChat(client, "[NE] %t", "Can't Nominate Current Map");
 
 				if((status & MAPSTATUS_EXCLUDE_PREVIOUS) == MAPSTATUS_EXCLUDE_PREVIOUS)
 				{
 					int Cooldown = GetMapCooldown(mapname);
-					CPrintToChat(client, "\x04[NE]\x01 %t (%d)", "Map in Exclude List", Cooldown);
+					CPrintToChat(client, "[NE] %t (%d)", "Map in Exclude List", Cooldown);
 				}
 
 				if((status & MAPSTATUS_EXCLUDE_NOMINATED) == MAPSTATUS_EXCLUDE_NOMINATED)
-					CPrintToChat(client, "\x04[NE]\x01 %t", "Map Already Nominated");
+					CPrintToChat(client, "[NE] %t", "Map Already Nominated");
 
 				return Plugin_Handled;
 			}
@@ -301,7 +295,7 @@ public Action Command_Addmap(int client, int args)
 		int TimeRestriction = GetMapTimeRestriction(mapname);
 		if(TimeRestriction)
 		{
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate Time Error", RoundToFloor(float(TimeRestriction / 60)), TimeRestriction % 60);
+			CPrintToChat(client, "[NE] %t", "Map Nominate Time Error", RoundToFloor(float(TimeRestriction / 60)), TimeRestriction % 60);
 
 			return Plugin_Handled;
 		}
@@ -310,9 +304,9 @@ public Action Command_Addmap(int client, int args)
 		if(PlayerRestriction)
 		{
 			if(PlayerRestriction < 0)
-				CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate MinPlayers Error", PlayerRestriction * -1);
+				CPrintToChat(client, "[NE] %t", "Map Nominate MinPlayers Error", PlayerRestriction * -1);
 			else
-				CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate MaxPlayers Error", PlayerRestriction);
+				CPrintToChat(client, "[NE] %t", "Map Nominate MaxPlayers Error", PlayerRestriction);
 
 			return Plugin_Handled;
 		}
@@ -320,7 +314,7 @@ public Action Command_Addmap(int client, int args)
 		int GroupRestriction = GetMapGroupRestriction(mapname);
 		if(GroupRestriction >= 0)
 		{
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate Group Error", GroupRestriction);
+			CPrintToChat(client, "[NE] %t", "Map Nominate Group Error", GroupRestriction);
 			return Plugin_Handled;
 		}
 	}
@@ -340,7 +334,7 @@ public Action Command_Addmap(int client, int args)
 	CReplyToCommand(client, "%t", "Map Inserted", mapname);
 	LogAction(client, -1, "\"%L\" inserted map \"%s\".", client, mapname);
 
-	CPrintToChatAll("\x04[NE]\x01 %N has inserted %s into nominations", client, mapname);
+	PrintToChatAll("[NE] %N has inserted %s into nominations", client, mapname);
 
 	return Plugin_Handled;
 }
@@ -349,7 +343,7 @@ public Action Command_Removemap(int client, int args)
 {
 	if(args != 1)
 	{
-		CReplyToCommand(client, "\x04[NE]\x01 Usage: sm_nominate_removemap <mapname>");
+		CReplyToCommand(client, "[NE] Usage: sm_nominate_removemap <mapname>");
 		return Plugin_Handled;
 	}
 
@@ -373,7 +367,7 @@ public Action Command_Removemap(int client, int args)
 	CReplyToCommand(client, "Map '%s' removed from the nominations list.", mapname);
 	LogAction(client, -1, "\"%L\" removed map \"%s\" from nominations.", client, mapname);
 
-	CPrintToChatAll("\x04[NE]\x01 %N has removed %s from nominations", client, mapname);
+	PrintToChatAll("[NE] %N has removed %s from nominations", client, mapname);
 
 	return Plugin_Handled;
 }
@@ -382,7 +376,7 @@ public Action Command_AddExclude(int client, int args)
 {
 	if(args < 1)
 	{
-		CReplyToCommand(client, "\x04[NE]\x01 Usage: sm_nominate_exclude <mapname>");
+		CReplyToCommand(client, "[NE] Usage: sm_nominate_exclude <mapname>");
 		return Plugin_Handled;
 	}
 
@@ -407,7 +401,7 @@ public Action Command_AddExclude(int client, int args)
 	int status;
 	if(!GetTrieValue(g_mapTrie, mapname, status))
 	{
-		CReplyToCommand(client, "\x04[NE]\x01 %t", "Map was not found", mapname);
+		ReplyToCommand(client, "[NE] %t", "Map was not found", mapname);
 		return Plugin_Handled;
 	}
 
@@ -445,7 +439,7 @@ public Action Command_Say(int client, int args)
 		if(IsNominateAllowed(client))
 		{
 			if(g_NominationDelay > GetTime())
-				CReplyToCommand(client, "\x04[NE]\x01 Nominations will be unlocked in %d seconds", g_NominationDelay - GetTime());
+				ReplyToCommand(client, "[NE] Nominations will be unlocked in %d seconds", g_NominationDelay - GetTime());
 			else
 				AttemptNominate(client);
 		}
@@ -463,7 +457,7 @@ public Action Command_Nominate(int client, int args)
 
 	if(g_NominationDelay > GetTime())
 	{
-		CPrintToChat(client, "\x04[NE]\x01 Nominations will be unlocked in %d seconds", g_NominationDelay - GetTime());
+		PrintToChat(client, "[NE] Nominations will be unlocked in %d seconds", g_NominationDelay - GetTime());
 		return Plugin_Handled;
 	}
 
@@ -475,7 +469,7 @@ public Action Command_Nominate(int client, int args)
 
 	if(g_Player_NominationDelay[client] > GetTime())
 	{
-		CPrintToChat(client, "\x04[NE]\x01 Please wait %d seconds before you can nominate again", g_Player_NominationDelay[client] - GetTime());
+		PrintToChat(client, "[NE] Please wait %d seconds before you can nominate again", g_Player_NominationDelay[client] - GetTime());
 		return Plugin_Handled;
 	}
 
@@ -493,16 +487,16 @@ public Action Command_Nominate(int client, int args)
 	if((status & MAPSTATUS_DISABLED) == MAPSTATUS_DISABLED)
 	{
 		if((status & MAPSTATUS_EXCLUDE_CURRENT) == MAPSTATUS_EXCLUDE_CURRENT)
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Can't Nominate Current Map");
+			CPrintToChat(client, "[NE] %t", "Can't Nominate Current Map");
 
 		if((status & MAPSTATUS_EXCLUDE_PREVIOUS) == MAPSTATUS_EXCLUDE_PREVIOUS)
 		{
 			int Cooldown = GetMapCooldown(mapname);
-			CPrintToChat(client, "\x04[NE]\x01 %t (%d)", "Map in Exclude List", Cooldown);
+			CPrintToChat(client, "[NE] %t (%d)", "Map in Exclude List", Cooldown);
 		}
 
 		if((status & MAPSTATUS_EXCLUDE_NOMINATED) == MAPSTATUS_EXCLUDE_NOMINATED)
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Map Already Nominated");
+			CPrintToChat(client, "[NE] %t", "Map Already Nominated");
 
 		return Plugin_Handled;
 	}
@@ -510,7 +504,7 @@ public Action Command_Nominate(int client, int args)
 	int TimeRestriction = GetMapTimeRestriction(mapname);
 	if(TimeRestriction)
 	{
-		CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate Time Error", RoundToFloor(float(TimeRestriction / 60)), TimeRestriction % 60);
+		CPrintToChat(client, "[NE] %t", "Map Nominate Time Error", RoundToFloor(float(TimeRestriction / 60)), TimeRestriction % 60);
 
 		return Plugin_Handled;
 	}
@@ -519,9 +513,9 @@ public Action Command_Nominate(int client, int args)
 	if(PlayerRestriction)
 	{
 		if(PlayerRestriction < 0)
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate MinPlayers Error", PlayerRestriction * -1);
+			CPrintToChat(client, "[NE] %t", "Map Nominate MinPlayers Error", PlayerRestriction * -1);
 		else
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate MaxPlayers Error", PlayerRestriction);
+			CPrintToChat(client, "[NE] %t", "Map Nominate MaxPlayers Error", PlayerRestriction);
 
 		return Plugin_Handled;
 	}
@@ -529,7 +523,7 @@ public Action Command_Nominate(int client, int args)
 	int GroupRestriction = GetMapGroupRestriction(mapname, client);
 	if(GroupRestriction >= 0)
 	{
-		CPrintToChat(client, "\x04[NE]\x01 %t", "Map Nominate Group Error", GroupRestriction);
+		CPrintToChat(client, "[NE] %t", "Map Nominate Group Error", GroupRestriction);
 		return Plugin_Handled;
 	}
 
@@ -538,9 +532,9 @@ public Action Command_Nominate(int client, int args)
 	if(result > Nominate_Replaced)
 	{
 		if(result == Nominate_AlreadyInVote)
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Map Already In Vote", mapname);
+			CPrintToChat(client, "[NE] %t", "Map Already In Vote", mapname);
 		else if(result == Nominate_VoteFull)
-			CPrintToChat(client, "\x04[NE]\x01 %t", "Max Nominations");
+			CPrintToChat(client, "[NE] %t", "Max Nominations");
 
 		return Plugin_Handled;
 	}
@@ -553,9 +547,9 @@ public Action Command_Nominate(int client, int args)
 	GetClientName(client, name, sizeof(name));
 
 	if(result == Nominate_Added)
-		CPrintToChatAll("\x04[NE]\x01 %t", "Map Nominated", name, mapname);
+		PrintToChatAll("[NE] %t", "Map Nominated", name, mapname);
 	else if(result == Nominate_Replaced)
-		CPrintToChatAll("\x04[NE]\x01 %t", "Map Nomination Changed", name, mapname);
+		PrintToChatAll("[NE] %t", "Map Nomination Changed", name, mapname);
 
 	LogMessage("%s nominated %s", name, mapname);
 
@@ -572,7 +566,7 @@ public Action Command_NominateList(int client, int args)
 	GetNominatedMapList(MapList);
 	if(!GetArraySize(MapList))
 	{
-		CReplyToCommand(client, "\x04[NE]\x01 No maps have been nominated.");
+		ReplyToCommand(client, "[NE] No maps have been nominated.");
 		delete MapList;
 		return Plugin_Handled;
 	}
@@ -582,14 +576,14 @@ public Action Command_NominateList(int client, int args)
 	if (client == 0)
 	{
 		char aBuf[2048];
-		StrCat(aBuf, sizeof(aBuf), "\x04[NE]\x01 Nominated Maps:");
+		StrCat(aBuf, sizeof(aBuf), "[NE] Nominated Maps:");
 		for(int i = 0; i < GetArraySize(MapList); i++)
 		{
 			StrCat(aBuf, sizeof(aBuf), "\n");
 			GetArrayString(MapList, i, map, sizeof(map));
 			StrCat(aBuf, sizeof(aBuf), map);
 		}
-		CReplyToCommand(client, aBuf);
+		ReplyToCommand(client, aBuf);
 		delete MapList;
 		return Plugin_Handled;
 	}
@@ -711,7 +705,7 @@ public int Handler_MapSelectMenu(Menu menu, MenuAction action, int param1, int p
 		{
 			if(g_Player_NominationDelay[param1] > GetTime())
 			{
-				CPrintToChat(param1, "\x04[NE]\x01 Please wait %d seconds before you can nominate again", g_Player_NominationDelay[param1] - GetTime());
+				PrintToChat(param1, "[NE] Please wait %d seconds before you can nominate again", g_Player_NominationDelay[param1] - GetTime());
 				DisplayMenuAtItem(menu, param1, GetMenuSelectionPosition(), MENU_TIME_FOREVER);
 				return 0;
 			}
@@ -727,21 +721,21 @@ public int Handler_MapSelectMenu(Menu menu, MenuAction action, int param1, int p
 			/* Don't need to check for InvalidMap because the menu did that already */
 			if(result == Nominate_AlreadyInVote)
 			{
-				CPrintToChat(param1, "\x04[NE]\x01 %t", "Map Already Nominated");
+				PrintToChat(param1, "[NE] %t", "Map Already Nominated");
 				return 0;
 			}
 			else if(result == Nominate_VoteFull)
 			{
-				CPrintToChat(param1, "\x04[NE]\x01 %t", "Max Nominations");
+				PrintToChat(param1, "[NE] %t", "Max Nominations");
 				return 0;
 			}
 
 			SetTrieValue(g_mapTrie, map, MAPSTATUS_DISABLED|MAPSTATUS_EXCLUDE_NOMINATED);
 
 			if(result == Nominate_Added)
-				CPrintToChatAll("\x04[NE]\x01 %t", "Map Nominated", name, map);
+				PrintToChatAll("[NE] %t", "Map Nominated", name, map);
 			else if(result == Nominate_Replaced)
-				CPrintToChatAll("\x04[NE]\x01 %t", "Map Nomination Changed", name, map);
+				PrintToChatAll("[NE] %t", "Map Nomination Changed", name, map);
 
 			LogMessage("%s nominated %s", name, map);
 			g_Player_NominationDelay[param1] = GetTime() + GetConVarInt(g_Cvar_NominateDelay);
@@ -763,13 +757,7 @@ public int Handler_MapSelectMenu(Menu menu, MenuAction action, int param1, int p
 			if((status & MAPSTATUS_DISABLED) == MAPSTATUS_DISABLED)
 				return ITEMDRAW_DISABLED;
 
-			if((GetMapTimeRestriction(map) || GetMapPlayerRestriction(map) || GetMapGroupRestriction(map, param1) >= 0) && !IsClientAdmin(param1))
-				return ITEMDRAW_DISABLED;
-
-			if(GetMapVIPOnly(map) && (!IsClientVIP(param1) || !IsClientAdmin(param1)))
-				return ITEMDRAW_DISABLED;
-
-			if(GetMapAdminOnly(map) && !IsClientAdmin(param1))
+			if(GetMapTimeRestriction(map) || GetMapPlayerRestriction(map) || GetMapGroupRestriction(map, param1) >= 0)
 				return ITEMDRAW_DISABLED;
 
 			return ITEMDRAW_DEFAULT;
@@ -836,58 +824,8 @@ public int Handler_MapSelectMenu(Menu menu, MenuAction action, int param1, int p
 					return RedrawMenuItem(display);
 				}
 			}
+
 			int TimeRestriction = GetMapTimeRestriction(map);
-			int PlayerRestriction = GetMapPlayerRestriction(map);
-			int GroupRestriction = GetMapGroupRestriction(map, param1);
-			
-			if(GetMapVIPOnly(map))
-			{
-				if (TimeRestriction)
-				{
-					Format(display, sizeof(display), "%s (%T)(★VIP★)", buffer, "Map Time Restriction", param1, "+", RoundToFloor(float(TimeRestriction / 60)), TimeRestriction % 60);
-					return RedrawMenuItem(display);
-				}
-				if (PlayerRestriction)
-				{
-					if(PlayerRestriction < 0)
-						Format(display, sizeof(display), "%s (%T)(★VIP★)", buffer, "Map Player Restriction", param1, "+", PlayerRestriction * -1);
-					else
-						Format(display, sizeof(display), "%s (%T)(★VIP★)", buffer, "Map Player Restriction", param1, "-", PlayerRestriction);
-				}
-				if(GroupRestriction >= 0)
-				{
-					Format(display, sizeof(display), "%s (%T)(★VIP★)", buffer, "Map Group Restriction", param1, GroupRestriction);
-					return RedrawMenuItem(display);
-				}
-				
-				Format(display, sizeof(display), "%s (★VIP★)", buffer);
-				return RedrawMenuItem(display);
-			}
-
-			if(GetMapAdminOnly(map))
-			{
-				if (TimeRestriction)
-				{
-					Format(display, sizeof(display), "%s (%T)(★Admin★)", buffer, "Map Time Restriction", param1, "+", RoundToFloor(float(TimeRestriction / 60)), TimeRestriction % 60);
-					return RedrawMenuItem(display);
-				}
-				if (PlayerRestriction)
-				{
-					if(PlayerRestriction < 0)
-						Format(display, sizeof(display), "%s (%T)(★Admin★)", buffer, "Map Player Restriction", param1, "+", PlayerRestriction * -1);
-					else
-						Format(display, sizeof(display), "%s (%T)(★Admin★)", buffer, "Map Player Restriction", param1, "-", PlayerRestriction);
-				}
-				if(GroupRestriction >= 0)
-				{
-					Format(display, sizeof(display), "%s (%T)(★Admin★)", buffer, "Map Group Restriction", param1, GroupRestriction);
-					return RedrawMenuItem(display);
-				}
-				
-				Format(display, sizeof(display), "%s (★Admin★)", buffer);
-				return RedrawMenuItem(display);
-			}
-
 			if(TimeRestriction)
 			{
 				Format(display, sizeof(display), "%s (%T)", buffer, "Map Time Restriction", param1, "+", RoundToFloor(float(TimeRestriction / 60)), TimeRestriction % 60);
@@ -895,6 +833,7 @@ public int Handler_MapSelectMenu(Menu menu, MenuAction action, int param1, int p
 				return RedrawMenuItem(display);
 			}
 
+			int PlayerRestriction = GetMapPlayerRestriction(map);
 			if(PlayerRestriction)
 			{
 				if(PlayerRestriction < 0)
@@ -905,6 +844,7 @@ public int Handler_MapSelectMenu(Menu menu, MenuAction action, int param1, int p
 				return RedrawMenuItem(display);
 			}
 
+			int GroupRestriction = GetMapGroupRestriction(map, param1);
 			if(GroupRestriction >= 0)
 			{
 				Format(display, sizeof(display), "%s (%T)", buffer, "Map Group Restriction", param1, GroupRestriction);
@@ -932,7 +872,7 @@ stock bool IsNominateAllowed(int client)
 	{
 		case CanNominate_No_VoteInProgress:
 		{
-			CReplyToCommand(client, "\x04[NE]\x01 %t", "Nextmap Voting Started");
+			CReplyToCommand(client, "[NE] %t", "Nextmap Voting Started");
 			return false;
 		}
 
@@ -940,16 +880,16 @@ stock bool IsNominateAllowed(int client)
 		{
 			char map[PLATFORM_MAX_PATH];
 			GetNextMap(map, sizeof(map));
-			CReplyToCommand(client, "\x04[NE]\x01 %t", "Next Map", map);
+			CReplyToCommand(client, "[NE] %t", "Next Map", map);
 			return false;
 		}
-
+/*
 		case CanNominate_No_VoteFull:
 		{
-			CReplyToCommand(client, "\x04[NE]\x01 %t", "Max Nominations");
+			CReplyToCommand(client, "[NE] %t", "Max Nominations");
 			return false;
 		}
-
+*/
 	}
 
 	return true;
@@ -974,16 +914,16 @@ public int Handler_AdminMapSelectMenu(Menu menu, MenuAction action, int param1, 
 			if(result > Nominate_Replaced)
 			{
 				/* We assume already in vote is the casue because the maplist does a Map Validity check and we forced, so it can't be full */
-				CPrintToChat(param1, "\x04[NE]\x01 %t", "Map Already In Vote", map);
+				PrintToChat(param1, "[NE] %t", "Map Already In Vote", map);
 				return 0;
 			}
 
 			SetTrieValue(g_mapTrie, map, MAPSTATUS_DISABLED|MAPSTATUS_EXCLUDE_NOMINATED);
 
-			CPrintToChat(param1, "\x04[NE]\x01 %t", "Map Inserted", map);
+			PrintToChat(param1, "[NE] %t", "Map Inserted", map);
 			LogAction(param1, -1, "\"%L\" inserted map \"%s\".", param1, map);
 
-			CPrintToChatAll("\x04[NE]\x01 %N has inserted %s into nominations", param1, map);
+			PrintToChatAll("[NE] %N has inserted %s into nominations", param1, map);
 		}
 
 		case MenuAction_DrawItem:
@@ -1163,21 +1103,4 @@ public int Native_RemoveMapsFromNominationPool(Handle plugin, int numArgs)
 	UpdateMapMenus();
 
 	return 0;
-}
-
-stock bool IsClientVIP(int client)
-{
-	char sClientFlag[16];
-	GetConVarString(g_Cvar_VIPFlag, sClientFlag, sizeof(sClientFlag));
-
-	if (GetUserFlagBits(client) & ReadFlagString(sClientFlag))
-	{
-		return true;
-	}
-	return false;
-}
-
-stock bool IsClientAdmin(int client)
-{
-	return CheckCommandAccess(client, "sm_map", ADMFLAG_CHANGEMAP, false);
 }
