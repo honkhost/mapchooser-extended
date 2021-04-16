@@ -271,6 +271,8 @@ public void OnPluginStart()
 
 	RegAdminCmd("sm_mapvote", Command_Mapvote, ADMFLAG_CHANGEMAP, "sm_mapvote - Forces MapChooser to attempt to run a map vote now.");
 	RegAdminCmd("sm_setnextmap", Command_SetNextmap, ADMFLAG_CHANGEMAP, "sm_setnextmap <map>");
+	RegAdminCmd("sm_clearallcd", Command_ClearAllCooldown, ADMFLAG_CHANGEMAP);
+	RegAdminCmd("sm_mapgroup", PrintGroupMapList, ADMFLAG_CHANGEMAP);
 
 	// Mapchooser Extended Commands
 	RegAdminCmd("mce_reload_maplist", Command_ReloadMaps, ADMFLAG_CHANGEMAP, "mce_reload_maplist - Reload the Official Maplist file.");
@@ -540,6 +542,10 @@ public void OnMapEnd()
 	GetCurrentMap(map, PLATFORM_MAX_PATH);
 
 	int Cooldown = InternalGetMapCooldown(map);
+	
+	#if defined GRP_COOLDOWN
+	SetMapCooldownGroup(map);
+	#endif
 	g_OldMapList.SetValue(map, Cooldown, true);
 
 	StringMapSnapshot OldMapListSnapshot = g_OldMapList.Snapshot();
@@ -555,11 +561,6 @@ public void OnMapEnd()
 			g_OldMapList.Remove(map);
 	}
 	InternalStoreMapCooldowns();
-	
-	#if defined GRP_COOLDOWN
-	SetMapCooldownGroup(map);
-	#endif
-	
 	delete OldMapListSnapshot;
 }
 
@@ -590,6 +591,56 @@ public void OnClientDisconnect(int client)
 	RemoveFromArray(g_NominateOwners, index);
 	RemoveFromArray(g_NominateList, index);
 	g_NominateCount--;
+}
+
+public Action Command_ClearAllCooldown(int client, int args)
+{
+	if(!client)
+		return Plugin_Handled;
+		
+	static char map[PLATFORM_MAX_PATH];
+	
+	StringMapSnapshot OldMapListSnapshot = g_OldMapList.Snapshot();
+	for(int i = 0; i < OldMapListSnapshot.Length; i++)
+	{
+		OldMapListSnapshot.GetKey(i, map, sizeof(map));
+		g_OldMapList.Remove(map);
+		CPrintToChat(client, "\x04[MCE]\x01 %s has been reset the cooldown", map);
+	}
+	InternalStoreMapCooldowns();
+	delete OldMapListSnapshot;
+	
+	return Plugin_Handled;
+}
+
+public Action PrintGroupMapList(int client, int args)
+{
+	if(args < 0)
+		return Plugin_Handled;
+	
+	char arg1[16];
+	char map[PLATFORM_MAX_PATH];
+	GetCmdArg(1, arg1, sizeof(arg1));
+	
+	if(g_Config && g_Config.JumpToKey("_groups"))
+    {
+        if(g_Config.JumpToKey(arg1, false))
+        {
+			if(g_Config.GotoFirstSubKey(false))
+			{
+				do
+				{
+					g_Config.GetSectionName(map, sizeof(map));
+					if((!StrEqual(map, "_max", false)) && (!StrEqual(map, "_cooldown", false)))
+						CPrintToChat(client, "\x04[MCE]\x01 Group %s and Map %s", arg1, map);
+				}while (g_Config.GotoNextKey());
+			}
+        }
+
+        g_Config.Rewind();
+    }
+	
+	return Plugin_Handled;
 }
 
 public Action Command_SetNextmap(int client, int args)
@@ -2807,7 +2858,7 @@ stock void SetMapCooldownGroup(const char[] map)
     for(int group = 0; group < groupsfound; group ++)
     {
         int iCDMapGroup = InternalGetGroupCooldown(groups[group]);
-        if(iCDMapGroup>0)
+        if(iCDMapGroup > 0)
         {
             SetMapsGroupCooldown(groups[group],iCDMapGroup);
         }
@@ -2823,12 +2874,18 @@ stock void SetMapsGroupCooldown(int group, int cooldown)
     {
         if(g_Config.JumpToKey(groupstr, false))
         {
-            do
-            {
-                g_Config.GetSectionName(map, sizeof(map));
-                g_OldMapList.SetValue(map, cooldown, true);
-            }
-			while (g_Config.GotoNextKey());
+            if(g_Config.GotoFirstSubKey(false))
+			{
+				do
+				{
+					g_Config.GetSectionName(map, sizeof(map));
+					if((!StrEqual(map, "_max", false)) && (!StrEqual(map, "_cooldown", false)))
+					{
+						LogMessage("Set Cooldown %s To: %d", map, cooldown);
+						g_OldMapList.SetValue(map, cooldown, true);
+					}
+				}while (g_Config.GotoNextKey());
+			}
         }
 
         g_Config.Rewind();
@@ -2843,7 +2900,7 @@ stock int InternalGetGroupCooldown(int group)
     {
         if(g_Config.JumpToKey(groupstr, false))
         {
-            int iCD = g_Config.GetNum("Cooldown", -1);
+            int iCD = g_Config.GetNum("_cooldown", -1);
             g_Config.Rewind();
             return iCD;
         }
