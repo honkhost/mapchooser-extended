@@ -12,6 +12,8 @@ Original: https://gogs.botox.bz/CSSZombieEscape/sm-plugins/src/master/mapchooser
 - Map group (This is not group cooldown, but to prevent nominate a map from the same group)
 - Cooldown based on cooldown.cfg (no reset cooldown)
 
+### If you want to use Admin or VIP map only feature, Check out the "master" branch!
+
 ## Credits to 
 - Powerlord
 - Zuko
