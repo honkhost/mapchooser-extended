@@ -4,7 +4,7 @@ Original: https://gogs.botox.bz/CSSZombieEscape/sm-plugins/src/master/mapchooser
 
 ## Feture
 ### New
-- Admin or VIP Map only
+- Admin or VIP Map only (Check branch "master")
 - Nominate Map only (Not appear on the vote without nominations)
 - Map group cooldown (Experiment now) 
 
