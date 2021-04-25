@@ -6,10 +6,10 @@ Original: https://gogs.botox.bz/CSSZombieEscape/sm-plugins/src/master/mapchooser
 ### New
 - Admin or VIP Map only (Check branch "master")
 - Nominate Map only (Not appear on the vote without nominations)
-- Map group cooldown (Experiment now) 
+- Map group cooldown (Official) 
 
 ### Existed
-- Map group (This is not group cooldown, but to prevent nominate a map from the same group)
+- Map group (This to prevent nominate a map from the same group)
 - Cooldown based on cooldown.cfg (no reset cooldown)
 - Limit Time for Nominate and play the map
 
