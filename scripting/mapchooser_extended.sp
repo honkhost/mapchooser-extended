@@ -57,7 +57,7 @@
 #pragma semicolon 1
 #pragma newdecls required
 
-#define MCE_VERSION "1.14.0"
+#define MCE_VERSION "1.14.1"
 #define NV "nativevotes"
 
 enum RoundCounting
@@ -86,7 +86,7 @@ enum
 public Plugin myinfo =
 {
 	name = "MapChooser Extended",
-	author = "Powerlord, Zuko, and AlliedModders LLC",
+	author = "Powerlord, Zuko, Oylsister and AlliedModders LLC",
 	description = "Automated Map Voting with Extensions",
 	version = MCE_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=156974"
@@ -2814,11 +2814,25 @@ stock void SetMapCooldownGroup(const char[] map)
     int groupsfound = InternalGetMapGroups(map, groups, sizeof(groups));
     for(int group = 0; group < groupsfound; group ++)
     {
-        int iCDMapGroup = InternalGetGroupCooldown(groups[group]);
-        if(iCDMapGroup > 0)
-        {
-            SetMapsGroupCooldown(groups[group],iCDMapGroup);
-        }
+		int iMode = InternalGroupCooldownMode(groups[group]);
+        //int iCDMapGroup = InternalGetGroupCooldown(groups[group]);
+		
+		if(iMode == 1)
+		{
+			int iCDMapGroup = InternalGetGroupCooldown(groups[group]);
+			if(iCDMapGroup > 0)
+			{
+				SetMapsGroupCooldown(groups[group],iCDMapGroup);
+			}
+		}
+		else if(iMode == 2)
+		{
+			SetDynamicMapsGroupCooldown(groups[group]);
+	}
+		else
+		{
+			LogError("Invalid group cooldown mode has been specificed.");
+		}
     }
 }
 
@@ -2836,7 +2850,7 @@ stock void SetMapsGroupCooldown(int group, int cooldown)
 				do
 				{
 					g_Config.GetSectionName(map, sizeof(map));
-					if((!StrEqual(map, "_max", false)) && (!StrEqual(map, "_cooldown", false)))
+					if((!StrEqual(map, "_max", false)) && (!StrEqual(map, "_cooldown", false)) && (!StrEqual(map, "_mode", false)))
 					{
 						LogMessage("Set Cooldown %s To: %d", map, cooldown);
 						g_OldMapList.SetValue(map, cooldown, true);
@@ -2847,6 +2861,72 @@ stock void SetMapsGroupCooldown(int group, int cooldown)
 
         g_Config.Rewind();
     }
+}
+
+// New feature
+stock void SetDynamicMapsGroupCooldown(int group)
+{
+    char groupstr[8];
+    IntToString(group, groupstr, sizeof(groupstr));
+    char map[PLATFORM_MAX_PATH];
+    if(g_Config && g_Config.JumpToKey("_groups"))
+    {
+        if(g_Config.JumpToKey(groupstr, false))
+        {
+			if(g_Config.GotoFirstSubKey(false))
+			{
+				do
+				{
+					g_Config.GetSectionName(map, sizeof(map));
+					if((!StrEqual(map, "_max", false)) && (!StrEqual(map, "_cooldown", false)) && (!StrEqual(map, "_mode", false)))
+					{
+						// check if the map is already cooldown or not
+						int old_cooldown;
+						g_OldMapList.GetValue(map, old_cooldown);
+						
+						// if not then put it's good to go!
+						if(old_cooldown < 1)
+						{
+							int new_cooldown; 
+							int check_cooldown = InternalGetMapCooldown(map);
+							if (check_cooldown != -1)
+							{
+								new_cooldown = check_cooldown;
+							}
+							else
+							{
+								new_cooldown = GetConVarInt(g_Cvar_ExcludeMaps);
+							}
+							LogMessage("Set Cooldown %s To: %d", map, new_cooldown);
+							g_OldMapList.SetValue(map, new_cooldown, true);
+						
+						}
+					}
+				}while (g_Config.GotoNextKey());
+			}
+        }
+
+        g_Config.Rewind();
+    }
+}
+
+stock int InternalGroupCooldownMode(int group)
+{
+	char groupstr[8];
+	IntToString(group, groupstr, sizeof(groupstr));
+	if(g_Config && g_Config.JumpToKey("_groups"))
+	{
+		if(g_Config.JumpToKey(groupstr, false))
+		{
+			int iMode = g_Config.GetNum("_mode", -1);
+			g_Config.Rewind();
+			return iMode;
+		}
+		
+		g_Config.Rewind();
+	}
+
+	return -1;
 }
 
 stock int InternalGetGroupCooldown(int group)
