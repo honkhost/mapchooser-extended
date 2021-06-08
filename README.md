@@ -2,6 +2,9 @@
 
 Original: https://gogs.botox.bz/CSSZombieEscape/sm-plugins/src/master/mapchooser_extended
 
+## Map Group Cooldown is NOW OFFICIAL
+Tired from players nominate three Final Fantasy in row? But now you can put them in the same group and give them a cooldown! 
+
 ## Feture
 ### New
 - Admin or VIP Map only (Check branch "master")
