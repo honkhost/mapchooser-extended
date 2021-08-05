@@ -39,14 +39,15 @@
 #include <sdktools_functions>
 #include <mapchooser>
 #include <nextmap>
+#include <cstrike>
 #include <multicolors>
 
-#define MCE_VERSION "1.13.0"
+#define MCE_VERSION "1.14.1"
 
 public Plugin myinfo =
 {
 	name = "Rock The Vote Extended",
-	author = "Powerlord and AlliedModders LLC",
+	author = "Powerlord, Oylsister and AlliedModders LLC",
 	description = "Provides RTV Map Voting",
 	version = MCE_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=156974"
@@ -59,6 +60,7 @@ ConVar g_Cvar_Interval;
 ConVar g_Cvar_ChangeTime;
 ConVar g_Cvar_RTVPostVoteAction;
 ConVar g_Cvar_RTVAutoDisable;
+ConVar g_Cvar_NiceInstantChange;
 
 bool g_CanRTV = false;			// True if RTV loaded maps and is active.
 bool g_RTVAllowed = false;		// True if RTV is available to players. Used to delay rtv votes.
@@ -66,9 +68,12 @@ int g_Voters = 0;				// Total voters connected. Doesn't include fake clients.
 int g_Votes = 0;				// Total number of "say rtv" votes
 int g_VotesNeeded = 0;			// Necessary votes before map vote begins. (voters * percent_needed)
 bool g_Voted[MAXPLAYERS+1] = {false, ...};
+bool g_ProperChange;
 Handle g_TimeOverTimer = INVALID_HANDLE;
 
 bool g_InChange = false;
+
+bool g_cstrike = false;
 
 public void OnPluginStart()
 {
@@ -83,6 +88,16 @@ public void OnPluginStart()
 	g_Cvar_ChangeTime = CreateConVar("sm_rtv_changetime", "0", "When to change the map after a succesful RTV: 0 - Instant, 1 - RoundEnd, 2 - MapEnd", _, true, 0.0, true, 2.0);
 	g_Cvar_RTVPostVoteAction = CreateConVar("sm_rtv_postvoteaction", "0", "What to do with RTV's after a mapvote has completed. 0 - Allow, success = instant change, 1 - Deny", _, true, 0.0, true, 1.0);
 	g_Cvar_RTVAutoDisable = CreateConVar("sm_rtv_autodisable", "0", "Automatically disable RTV when map time is over.", _, true, 0.0, true, 1.0);
+	g_Cvar_NiceInstantChange = CreateConVar("sm_rtv_propermapchange", "0", "Toggle option changing the map with a proper way rather than instant change");
+
+	char sGameFolder[PLATFORM_MAX_PATH];
+	GetGameFolderName(sGameFolder, sizeof(sGameFolder));
+	
+	if(StrEqual(sGameFolder, "csgo", false) || StrEqual(sGameFolder, "cstrike", false))
+		g_cstrike = true;
+		
+	else
+		g_cstrike = false;
 
 	RegConsoleCmd("sm_rtv", Command_RTV);
 
@@ -317,11 +332,42 @@ public Action Timer_ChangeMap(Handle hTimer)
 	g_InChange = false;
 
 	LogMessage("RTV changing map manually");
+	
+	g_ProperChange = GetConVarBool(g_Cvar_NiceInstantChange);
 
 	char map[PLATFORM_MAX_PATH];
 	if (GetNextMap(map, sizeof(map)))
 	{
-		ForceChangeLevel(map, "RTV after mapvote");
+		if(!g_ProperChange)
+			ForceChangeLevel(map, "RTV after mapvote");
+			
+		else
+		{	
+			FindConVar("mp_halftime").SetInt(0);
+			FindConVar("mp_timelimit").SetInt(0);
+			FindConVar("mp_maxrounds").SetInt(0);
+			FindConVar("mp_roundtime").SetInt(1);
+			
+			if (g_cstrike)
+			{
+				int TScore = GetTeamScore(2);
+				int CTScore = GetTeamScore(3);
+				
+				if(CTScore > TScore)
+					CS_TerminateRound(15.0, CSRoundEnd_CTWin, false);
+					
+				else 
+					CS_TerminateRound(15.0, CSRoundEnd_TerroristWin, false);
+			}
+			else
+			{
+				for(int i = 1; i <= MaxClients; i++)
+				{
+					if (IsClientInGame(i) && IsPlayerAlive(i))
+						ForcePlayerSuicide(i);
+				}
+			}
+		}
 	}
 
 	return Plugin_Stop;

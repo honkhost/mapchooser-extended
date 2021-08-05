@@ -418,6 +418,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 	CreateNative("GetMapGroups", Native_GetMapGroups);
 	CreateNative("GetMapGroupRestriction", Native_GetMapGroupRestriction);
 	CreateNative("GetMapNominateOnly", Native_GetMapNominateOnly);
+	CreateNative("GetMapDifficulty", Native_GetMapDifficulty);
 
 	return APLRes_Success;
 }
@@ -2401,10 +2402,41 @@ public int Native_GetMapNominateOnly(Handle plugin, int numParams)
 
 stock void AddMapItem(const char[] map)
 {
+	char mapdifficult[256];
+	int g_iDifficulty = InternalGetMapDifficulty(map);
+	
 	if(g_NativeVotes)
 		NativeVotes_AddItem(g_VoteMenu, map, map);
+		
 	else
-		AddMenuItem(g_VoteMenu, map, map);
+	{
+		if(g_iDifficulty < 1 || g_iDifficulty == 0 || g_iDifficulty > 4)
+			AddMenuItem(g_VoteMenu, map, map);
+			
+		else
+		{
+			if(g_iDifficulty == 1)
+			{
+				FormatEx(mapdifficult, sizeof(mapdifficult), "%s (Easy)", map);
+				AddMenuItem(g_VoteMenu, map, mapdifficult);
+			}
+			if(g_iDifficulty == 2)
+			{
+				FormatEx(mapdifficult, sizeof(mapdifficult), "%s (Normal)", map);
+				AddMenuItem(g_VoteMenu, map, mapdifficult);
+			}
+			if(g_iDifficulty == 3)
+			{
+				FormatEx(mapdifficult, sizeof(mapdifficult), "%s (Hard)", map);
+				AddMenuItem(g_VoteMenu, map, mapdifficult);
+			}
+			if(g_iDifficulty == 4)
+			{
+				FormatEx(mapdifficult, sizeof(mapdifficult), "%s (Very Hard)", map);
+				AddMenuItem(g_VoteMenu, map, mapdifficult);
+			}
+		}
+	}
 }
 
 stock void GetMapItem(Handle menu, int position, char[] map, int mapLen)
@@ -2946,4 +2978,32 @@ stock int InternalGetGroupCooldown(int group)
     }
 
     return -1;
+}
+
+public int Native_GetMapDifficulty(Handle plugin, int numParams)
+{
+	int len;
+	GetNativeStringLength(1, len);
+
+	if(len <= 0)
+		return false;
+
+	char[] map = new char[len+1];
+	GetNativeString(1, map, len+1);
+
+	return InternalGetMapDifficulty(map);
+}
+
+stock int InternalGetMapDifficulty(const char[] map)
+{
+	// 0 = None, 1 = Easy, 2 = Normal, 3 = Hard, 4 = Very Hard
+	int g_iDifficulty = 0;
+
+	if(g_Config && g_Config.JumpToKey(map))
+	{
+		g_iDifficulty = g_Config.GetNum("Level", -1);
+		g_Config.Rewind();
+	}
+
+	return g_iDifficulty;
 }

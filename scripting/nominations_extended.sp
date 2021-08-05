@@ -41,12 +41,12 @@
 #include <multicolors>
 #include <basecomm>
 
-#define MCE_VERSION "1.13.0"
+#define MCE_VERSION "1.14.1"
 
 public Plugin myinfo =
 {
 	name = "Map Nominations Extended",
-	author = "Powerlord and AlliedModders LLC",
+	author = "Powerlord, Oylsister and AlliedModders LLC",
 	description = "Provides Map Nominations",
 	version = MCE_VERSION,
 	url = "https://forums.alliedmods.net/showthread.php?t=156974"
@@ -901,6 +901,31 @@ public int Handler_MapSelectMenu(Menu menu, MenuAction action, int param1, int p
 			{
 				Format(display, sizeof(display), "%s (%T)", buffer, "Map Group Restriction", param1, GroupRestriction);
 				return RedrawMenuItem(display);
+			}
+			
+			int Difficulty = GetMapDifficulty(map);
+			if(Difficulty > 0 && Difficulty < 5)
+			{
+				if(Difficulty == 1)
+				{
+					Format(display, sizeof(display), "%s (Easy)", buffer);
+					return RedrawMenuItem(display);
+				}
+				else if(Difficulty == 2)
+				{
+					Format(display, sizeof(display), "%s (Normal)", buffer);
+					return RedrawMenuItem(display);
+				}
+				else if(Difficulty == 3)
+				{
+					Format(display, sizeof(display), "%s (Hard)", buffer);
+					return RedrawMenuItem(display);
+				}
+				else
+				{
+					Format(display, sizeof(display), "%s (Very Hard)", buffer);
+					return RedrawMenuItem(display);
+				}
 			}
 
 			if(mark && !official)
