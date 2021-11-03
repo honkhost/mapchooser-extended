@@ -542,8 +542,11 @@ public void OnMapEnd()
 	static char map[PLATFORM_MAX_PATH];
 	GetCurrentMap(map, PLATFORM_MAX_PATH);
 
+	static char nextmap[PLATFORM_MAX_PATH];
+	GetNextMap(nextmap, PLATFORM_MAX_PATH);
+
 	int Cooldown = InternalGetMapCooldown(map);
-	SetMapCooldownGroup(map);
+	SetMapCooldownGroup(nextmap);
 	
 	g_OldMapList.SetValue(map, Cooldown, true);
 
